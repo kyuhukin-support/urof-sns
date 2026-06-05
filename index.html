@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>予約完了</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      background: #f7f7f7;
+      color: #222;
+    }
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px 16px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 28px;
+    }
+    .box {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #eef7ee;
+      line-height: 1.9;
+      font-size: 15px;
+    }
+    .note {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #f0f6ff;
+      line-height: 1.8;
+      color: #333;
+    }
+    a {
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>予約が完了しました</h1>
+
+      <div class="box" id="completeBox"></div>
+
+      <div class="note">
+        この画面が表示されていれば予約は完了しています。<br>
+        同じ内容で再度予約しないようお願いいたします。
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+
+    const bookingDate = params.get("bookingDate") || "";
+    const bookingStartTime = params.get("bookingStartTime") || "";
+    const bookingEndTime = params.get("bookingEndTime") || "";
+    const fullName = params.get("fullName") || "";
+    const bookingId = params.get("bookingId") || "";
+    const managementUrl = params.get("managementUrl") || "";
+
+    document.getElementById("completeBox").innerHTML =
+      "予約日: " + bookingDate + "<br>" +
+      "開始時刻: " + bookingStartTime + "<br>" +
+      "終了時刻: " + bookingEndTime + "<br>" +
+      "お名前: " + fullName + "<br>" +
+      "予約ID: " + bookingId + "<br>" +
+      "管理URL: " + (managementUrl
+        ? '<a href="' + managementUrl + '" target="_blank">予約管理ページを開く</a>'
+        : "未取得");
+  </script>
+</body>
+</html>
