@@ -5,27 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>予約完了</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
       background: #f7f7f7;
       color: #222;
     }
+
     .wrap {
       max-width: 760px;
       margin: 0 auto;
       padding: 24px 16px;
     }
+
     .card {
       background: #fff;
       border-radius: 16px;
       padding: 24px;
-      box-shadow: 0 4px 20px rgba(0,0,0,.08);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     }
+
     h1 {
-      margin: 0 0 16px;
+      margin: 0 0 12px;
       font-size: 28px;
     }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 21px;
+    }
+
+    .lead {
+      margin: 0;
+      line-height: 1.8;
+    }
+
     .box {
       margin-top: 18px;
       padding: 16px;
@@ -34,36 +52,153 @@
       line-height: 1.9;
       font-size: 15px;
     }
+
+    .line-section {
+      margin-top: 20px;
+      padding: 20px;
+      border: 2px solid #06c755;
+      border-radius: 14px;
+      background: #f3fff6;
+    }
+
+    .required {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #d93025;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .steps {
+      margin: 12px 0 16px;
+      padding-left: 22px;
+      line-height: 1.9;
+    }
+
+    .message-preview {
+      margin: 14px 0;
+      padding: 14px;
+      border: 1px solid #cfd8dc;
+      border-radius: 10px;
+      background: #fff;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    .button {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      padding: 15px 18px;
+      border: 0;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .line-button {
+      background: #06c755;
+      color: #fff;
+    }
+
+    .copy-button {
+      background: #fff;
+      color: #1769aa;
+      border: 1px solid #1769aa;
+    }
+
+    .status {
+      min-height: 24px;
+      margin-top: 12px;
+      color: #176b2c;
+      font-weight: 700;
+      line-height: 1.6;
+    }
+
     .note {
-      margin-top: 16px;
+      margin-top: 18px;
       padding: 14px;
       border-radius: 12px;
       background: #f0f6ff;
       line-height: 1.8;
       color: #333;
     }
-    a {
-      word-break: break-all;
+
+    .management-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: #1769aa;
+      font-weight: 700;
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 19px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      h2 {
+        font-size: 19px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>予約が完了しました</h1>
+      <h1>予約枠を確保しました</h1>
+      <p class="lead">
+        下記の予約内容をご確認ください。<br>
+        最終受付のため、続けてLINEの追加とメッセージ送信をお願いします。
+      </p>
 
       <div class="box" id="completeBox"></div>
 
+      <section class="line-section">
+        <span class="required">LINE送信必須</span>
+        <h2>LINEで予約情報を送信してください</h2>
+
+        <ol class="steps">
+          <li>下の緑色のボタンを押します。</li>
+          <li>送信内容が自動でコピーされ、LINEの友だち追加画面が開きます。</li>
+          <li>友だち追加後、トーク画面に貼り付けて送信してください。</li>
+        </ol>
+
+        <div class="message-preview" id="messagePreview"></div>
+
+        <button type="button" class="button line-button" id="lineButton">
+          送信内容をコピーしてLINEを追加
+        </button>
+
+        <button type="button" class="button copy-button" id="copyButton">
+          送信内容だけコピー
+        </button>
+
+        <div class="status" id="copyStatus" aria-live="polite"></div>
+      </section>
+
       <div class="note">
-        この画面が表示されていれば予約は完了しています。<br>
-        同じ内容で再度予約しないようお願いいたします。
+        予約枠の登録は完了しています。<br>
+        同じ内容で再度予約しないようお願いいたします。<br>
+        <span id="managementArea"></span>
       </div>
     </div>
   </div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
+    const LINE_FRIEND_URL = "https://line.me/ti/p/aZn4JHxcLC";
 
+    const params = new URLSearchParams(window.location.search);
     const bookingDate = params.get("bookingDate") || "";
     const bookingStartTime = params.get("bookingStartTime") || "";
     const bookingEndTime = params.get("bookingEndTime") || "";
@@ -71,15 +206,115 @@
     const bookingId = params.get("bookingId") || "";
     const managementUrl = params.get("managementUrl") || "";
 
-    document.getElementById("completeBox").innerHTML =
-      "予約日: " + bookingDate + "<br>" +
-      "開始時刻: " + bookingStartTime + "<br>" +
-      "終了時刻: " + bookingEndTime + "<br>" +
-      "お名前: " + fullName + "<br>" +
-      "予約ID: " + bookingId + "<br>" +
-      "管理URL: " + (managementUrl
-        ? '<a href="' + managementUrl + '" target="_blank">予約管理ページを開く</a>'
-        : "未取得");
+    const displayDate = bookingDate || "未取得";
+    const displayStartTime = bookingStartTime || "未取得";
+    const displayEndTime = bookingEndTime || "未取得";
+    const displayFullName = fullName || "未取得";
+    const displayBookingId = bookingId || "未取得";
+
+    const completeBox = document.getElementById("completeBox");
+
+    const bookingRows = [
+      ["予約日", displayDate],
+      ["開始時刻", displayStartTime],
+      ["終了時刻", displayEndTime],
+      ["お名前", displayFullName],
+      ["予約ID", displayBookingId]
+    ];
+
+    bookingRows.forEach(([label, value]) => {
+      const row = document.createElement("div");
+      const labelElement = document.createElement("strong");
+      labelElement.textContent = label + "：";
+      row.appendChild(labelElement);
+      row.appendChild(document.createTextNode(value));
+      completeBox.appendChild(row);
+    });
+
+    const timeRange = bookingEndTime
+      ? `${displayStartTime}〜${displayEndTime}`
+      : displayStartTime;
+
+    const lineMessage =
+      `予約日時：${displayDate} ${timeRange}\n` +
+      `氏名：${displayFullName}`;
+
+    document.getElementById("messagePreview").textContent = lineMessage;
+
+    const managementArea = document.getElementById("managementArea");
+
+    if (managementUrl) {
+      const link = document.createElement("a");
+      link.href = managementUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.className = "management-link";
+      link.textContent = "予約内容の変更・キャンセルはこちら";
+      managementArea.appendChild(link);
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (error) {
+          // 下記のフォールバック処理を実行
+        }
+      }
+
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+
+      let copied = false;
+
+      try {
+        copied = document.execCommand("copy");
+      } catch (error) {
+        copied = false;
+      }
+
+      document.body.removeChild(textarea);
+      return copied;
+    }
+
+    function setStatus(message, isError = false) {
+      const status = document.getElementById("copyStatus");
+      status.textContent = message;
+      status.style.color = isError ? "#d93025" : "#176b2c";
+    }
+
+    document.getElementById("copyButton").addEventListener("click", async () => {
+      const copied = await copyText(lineMessage);
+
+      if (copied) {
+        setStatus("送信内容をコピーしました。LINEのトーク画面に貼り付けてください。");
+      } else {
+        setStatus("コピーできませんでした。上の送信内容を長押ししてコピーしてください。", true);
+      }
+    });
+
+    document.getElementById("lineButton").addEventListener("click", async () => {
+      const copied = await copyText(lineMessage);
+
+      if (copied) {
+        setStatus("送信内容をコピーしました。LINEを開きます。");
+      } else {
+        setStatus("自動コピーできませんでした。送信内容を確認してLINEを開きます。", true);
+      }
+
+      window.setTimeout(() => {
+        window.location.href = LINE_FRIEND_URL;
+      }, 250);
+    });
   </script>
 </body>
 </html>
