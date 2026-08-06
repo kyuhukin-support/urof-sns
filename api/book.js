@@ -1,89 +1,130 @@
 const GAS_WEBAPP_URL =
   "https://script.google.com/macros/s/AKfycbwZuEkMw6rO6WR0qdezWsSxcxsLz0kmyMNakqOEtXIDt5v9H515vMxTv6mE4_P-xPNRDA/exec";
 
-const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
+const POLLING_INTERVAL_MS = 1000;
+const MAX_POLLING_COUNT = 15;
 
-async function fetchGasResponse(payload) {
-  let requestUrl = GAS_WEBAPP_URL;
-  let requestMethod = "POST";
-  let requestBody = JSON.stringify(payload);
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  for (let redirectCount = 0; redirectCount < 5; redirectCount++) {
-    const headers =
-      requestMethod === "POST"
-        ? {
-            "Content-Type": "application/json",
-            Accept: "application/json"
-          }
-        : {
-            Accept: "application/json"
-          };
+function generateRequestId() {
+  return [
+    Date.now(),
+    Math.random().toString(36).slice(2),
+    Math.random().toString(36).slice(2)
+  ].join("-");
+}
 
-    const response = await fetch(requestUrl, {
-      method: requestMethod,
-      redirect: "manual",
-      headers,
-      body: requestMethod === "POST" ? requestBody : undefined
-    });
+async function sendBookingRequest(payload) {
+  /*
+   * GASの予約処理自体が完了すればよいため、
+   * ContentServiceのリダイレクト後の本文はここでは読みません。
+   */
+  return fetch(GAS_WEBAPP_URL, {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+}
 
-    if (!REDIRECT_STATUS_CODES.has(response.status)) {
-      return response;
-    }
+async function fetchBookingResult(requestId) {
+  const resultUrl =
+    `${GAS_WEBAPP_URL}` +
+    `?action=bookingResult` +
+    `&requestId=${encodeURIComponent(requestId)}` +
+    `&_=${Date.now()}`;
 
-    const redirectUrl = response.headers.get("location");
+  const response = await fetch(resultUrl, {
+    method: "GET",
+    redirect: "follow",
+    headers: {
+      Accept: "application/json"
+    },
+    cache: "no-store"
+  });
 
-    if (!redirectUrl) {
-      throw new Error(
-        `GASからリダイレクトURLを取得できませんでした。HTTP ${response.status}`
-      );
-    }
+  const text = await response.text();
 
-    requestUrl = new URL(redirectUrl, requestUrl).toString();
-
-    // Apps Script ContentServiceの302リダイレクト先はGETで取得する
-    if ([301, 302, 303].includes(response.status)) {
-      requestMethod = "GET";
-      requestBody = undefined;
-    }
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(
+      `GAS bookingResult の返却がJSONではありません。` +
+      `HTTP ${response.status} / ${text.slice(0, 300)}`
+    );
   }
-
-  throw new Error("GASのリダイレクト回数が上限を超えました。");
 }
 
 export default async function handler(req, res) {
-  try {
-    if (req.method !== "POST") {
-      return res.status(405).json({
-        success: false,
-        message: "Method Not Allowed"
-      });
-    }
-
-    const response = await fetchGasResponse(req.body);
-    const text = await response.text();
-
-    let json;
-
-    try {
-      json = JSON.parse(text);
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message:
-          `GAS book の返却がJSONではありません。` +
-          `HTTP ${response.status} / ${text.slice(0, 300)}`
-      });
-    }
-
-    if (!json.success) {
-      return res.status(400).json(json);
-    }
-
-    return res.status(200).json(json);
-  } catch (error) {
-    return res.status(500).json({
+  if (req.method !== "POST") {
+    return res.status(405).json({
       success: false,
-      message: error.message || "book API error"
+      message: "Method Not Allowed"
     });
   }
+
+  const requestId = generateRequestId();
+
+  const payload = {
+    ...req.body,
+    requestId
+  };
+
+  let postError = null;
+
+  try {
+    await sendBookingRequest(payload);
+  } catch (error) {
+    /*
+     * 通信エラーに見えてもGAS側で予約が完了している可能性があるため、
+     * ここでは終了せず、予約結果の確認へ進みます。
+     */
+    postError = error;
+  }
+
+  let lastPollingError = null;
+
+  for (let count = 0; count < MAX_POLLING_COUNT; count++) {
+    if (count > 0) {
+      await sleep(POLLING_INTERVAL_MS);
+    }
+
+    try {
+      const result = await fetchBookingResult(requestId);
+
+      if (!result.ready) {
+        continue;
+      }
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.message || "予約作成に失敗しました。"
+        });
+      }
+
+      return res.status(200).json(result);
+
+    } catch (error) {
+      lastPollingError = error;
+    }
+  }
+
+  console.error("Booking result timeout", {
+    requestId,
+    postError: postError ? postError.message : null,
+    pollingError: lastPollingError ? lastPollingError.message : null
+  });
+
+  return res.status(504).json({
+    success: false,
+    message:
+      "予約処理の結果確認がタイムアウトしました。" +
+      "予約が反映されている可能性があるため、同じ内容を再送せず管理者へご確認ください。"
+  });
 }
