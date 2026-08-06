@@ -260,7 +260,14 @@
     let selectedTimeStart = "";
     let selectedTimeEnd = "";
     let selectedTimeLabel = "";
-    let isSubmitting = false;
+let isSubmitting = false;
+
+const sourceParam = new URLSearchParams(window.location.search).get("source");
+
+const bookingSource =
+  String(sourceParam || "SNS").trim().toUpperCase() === "LIDAS"
+    ? "LIDAS"
+    : "SNS";
 
     function normalizePhone(value) {
       return String(value || "").replace(/\D/g, "");
@@ -406,6 +413,7 @@
       const submitBtn = document.getElementById("submitBtn");
 
       const payload = {
+        source: bookingSource,
         bookingDate: selectedDateValue,
         bookingStartTime: selectedTimeStart,
         lastName: getValue("lastName"),
