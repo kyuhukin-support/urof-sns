@@ -108,12 +108,6 @@
       color: #fff;
     }
 
-    .copy-button {
-      background: #fff;
-      color: #1769aa;
-      border: 1px solid #1769aa;
-    }
-
     .status {
       min-height: 24px;
       margin-top: 12px;
@@ -178,10 +172,6 @@
 
         <button type="button" class="button line-button" id="lineButton">
           送信内容をコピーしてLINEを追加
-        </button>
-
-        <button type="button" class="button copy-button" id="copyButton">
-          送信内容だけコピー
         </button>
 
         <div class="status" id="copyStatus" aria-live="polite"></div>
@@ -289,16 +279,6 @@
       status.textContent = message;
       status.style.color = isError ? "#d93025" : "#176b2c";
     }
-
-    document.getElementById("copyButton").addEventListener("click", async () => {
-      const copied = await copyText(lineMessage);
-
-      if (copied) {
-        setStatus("送信内容をコピーしました。LINEのトーク画面に貼り付けてください。");
-      } else {
-        setStatus("コピーできませんでした。上の送信内容を長押ししてコピーしてください。", true);
-      }
-    });
 
     document.getElementById("lineButton").addEventListener("click", async () => {
       const copied = await copyText(lineMessage);
