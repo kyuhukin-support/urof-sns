@@ -245,7 +245,7 @@
       </div>
 
       <div class="submit-row">
-        <button class="btn" id="submitBtn" type="button">この内容で予約する</button>
+        <button class="btn" id="submitBtn" type="button">次に進む</button>
       </div>
 
       <div class="error" id="errorBox"></div>
@@ -260,14 +260,7 @@
     let selectedTimeStart = "";
     let selectedTimeEnd = "";
     let selectedTimeLabel = "";
-let isSubmitting = false;
-
-const sourceParam = new URLSearchParams(window.location.search).get("source");
-
-const bookingSource =
-  String(sourceParam || "SNS").trim().toUpperCase() === "LIDAS"
-    ? "LIDAS"
-    : "SNS";
+    let isSubmitting = false;
 
     function normalizePhone(value) {
       return String(value || "").replace(/\D/g, "");
@@ -413,7 +406,6 @@ const bookingSource =
       const submitBtn = document.getElementById("submitBtn");
 
       const payload = {
-        source: bookingSource,
         bookingDate: selectedDateValue,
         bookingStartTime: selectedTimeStart,
         lastName: getValue("lastName"),
@@ -467,7 +459,7 @@ const bookingSource =
       try {
         isSubmitting = true;
         submitBtn.disabled = true;
-        submitBtn.textContent = "予約を確定中です...";
+        submitBtn.textContent = "更新中";
 
         const response = await fetch('/api/book', {
           method: 'POST',
@@ -482,7 +474,7 @@ const bookingSource =
         if (!response.ok || !result.success) {
           isSubmitting = false;
           submitBtn.disabled = false;
-          submitBtn.textContent = "この内容で予約する";
+          submitBtn.textContent = "次に進む";
           return showError(result.message || '送信に失敗しました。');
         }
 
@@ -491,7 +483,7 @@ const bookingSource =
       } catch (error) {
         isSubmitting = false;
         submitBtn.disabled = false;
-        submitBtn.textContent = "この内容で予約する";
+        submitBtn.textContent = "次に進む";
         showError("通信エラーが発生しました。");
       }
     });
